@@ -8,8 +8,9 @@ import win32con
 # Fail-safe feature - quickly move mouse to corner to stop
 pyautogui.FAILSAFE = True
 
-# Global flag to control typing
+# Global flags to control typing
 should_stop_typing = False
+is_paused = False
 
 def get_clipboard_text():
     """Get text from clipboard using win32clipboard"""
@@ -28,43 +29,65 @@ def get_clipboard_text():
             pass
         return None
 
+def clean_text(text):
+    """Remove tab spaces at the start of each line"""
+    # Split text into lines and remove leading tabs from each line
+    lines = text.split('\n')
+    cleaned_lines = [line.lstrip('\t') for line in lines]
+    # Join the lines back together
+    return '\n'.join(cleaned_lines)
+
 def stop_typing():
     global should_stop_typing
     should_stop_typing = True
     print("Stopping typing...")
 
-def type_with_delay(text, delay=0.05):
-    """Type text with a consistent delay between characters"""
-    global should_stop_typing
+def toggle_pause():
+    global is_paused
+    is_paused = not is_paused
+    print("Paused" if is_paused else "Resumed")
+
+def type_text(text):
+    """Type text as fast as possible"""
+    global should_stop_typing, is_paused
     should_stop_typing = False
+    is_paused = False
     
-    print("Starting to type in 3 seconds...")
+    # Clean the text before typing
+    text = clean_text(text)
+    
+    print("Starting to type in 2 seconds...")
     print("Make sure your cursor is where you want to type!")
-    time.sleep(3)
+    time.sleep(2)
     
     # Type the text
     for char in text:
         if should_stop_typing:
             print("Typing stopped!")
             break
+            
+        while is_paused:
+            time.sleep(0.1)  # Small delay while paused
+            
         try:
             pyautogui.write(char)
-            time.sleep(delay)
         except Exception as e:
             print(f"Error typing character: {e}")
             break
 
-print("Auto-typer started!")
+print("Fast Auto-typer started!")
 print("Instructions:")
 print("1. Copy your text (Ctrl+C)")
 print("2. Place your cursor where you want to type")
 print("3. Press 'F8' to start typing")
 print("4. Press 'F4' to stop typing in the middle")
-print("5. Press 'Esc' to quit")
-print("6. Move mouse to screen corner to force-stop")
+print("5. Press 'F9' to pause/resume typing")
+print("6. Press 'Esc' to quit")
+print("7. Move mouse to screen corner to force-stop")
 
-# Register the stop typing hotkey
+# Register the hotkeys
 keyboard.on_press_key('f4', lambda _: stop_typing())
+keyboard.on_press_key('f9', lambda _: toggle_pause())
 
 while True:
     try:
@@ -77,10 +100,10 @@ while True:
             text = get_clipboard_text() or pyperclip.paste()
             if text:
                 print(f"Found text in clipboard ({len(text)} characters)")
-                type_with_delay(text)
+                type_text(text)
             else:
                 print("No text found in clipboard!")
-            time.sleep(1)  # Prevent multiple triggers
+            time.sleep(0.5)  # Prevent multiple triggers
             
         time.sleep(0.1)  # Reduce CPU usage
         
